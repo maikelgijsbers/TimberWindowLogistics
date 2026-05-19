@@ -40,6 +40,8 @@ Advancement is handled by `nextStatus()`, which steps through the `statuses` arr
 
 - **Metrics**: `total frames` and `in production`/`ready for delivery` counts are sums of `quantity` (not order count). `late orders` is a count of orders (not frames) where `status !== "Delivered"` and `dueDate < today`.
 
+- **Google Maps**: The "Delivery Map" section loads the Maps JS API dynamically using a key entered by the user (saved to `localStorage` under `timber-window-maps-key`). Geocoded coordinates are cached in `localStorage` under `timber-window-geocache-v1` as `{ addressString: { lat, lng } }` to avoid redundant API calls. `window.initMap` is the Maps API callback. `renderMapMarkers()` is called at the end of every `render()` — it is a no-op when `map` is null. Markers are color-coded by status using `MAP_COLORS`.
+
 - **Legacy address field**: Old orders may have a top-level `address` string instead of structured fields. The render function handles this with a fallback: `order.address ?? \`${order.street} ${order.houseNumber}, ${order.city}, ${order.country}\``. When editing an order, `address` is explicitly set to `undefined` to migrate it to structured fields.
 
 - **Button event delegation**: Table row actions (Edit, Advance, Remove) use a single `click` listener on `#order-rows`. Buttons carry `data-action` and `data-order-id` attributes; the handler resolves the order by ID from a fresh `loadOrders()` call.
