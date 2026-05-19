@@ -158,7 +158,11 @@
 
   <script>
     const STORAGE_KEY = "timber-window-orders-v1";
-    const statuses = ["Planned", "In Production", "Ready for Delivery", "Delivered"];
+    const STATUS_PLANNED = "Planned";
+    const STATUS_IN_PRODUCTION = "In Production";
+    const STATUS_READY_FOR_DELIVERY = "Ready for Delivery";
+    const STATUS_DELIVERED = "Delivered";
+    const statuses = [STATUS_PLANNED, STATUS_IN_PRODUCTION, STATUS_READY_FOR_DELIVERY, STATUS_DELIVERED];
 
     const form = document.getElementById("order-form");
     const rows = document.getElementById("order-rows");
@@ -173,7 +177,7 @@
         return window.crypto.randomUUID();
       }
       orderCounter += 1;
-      return `${Date.now()}-${orderCounter}-${Math.random().toString(16).slice(2)}`;
+      return `${Date.now()}-${Math.floor(performance.now() * 1000)}-${orderCounter}`;
     }
 
     function getTodayLocalDateString() {
@@ -228,9 +232,9 @@
 
       orders.forEach((order) => {
         total += Number(order.quantity);
-        if (order.status === "In Production") production += Number(order.quantity);
-        if (order.status === "Ready for Delivery") ready += Number(order.quantity);
-        if (order.status !== "Delivered" && order.dueDate < today) late += 1;
+        if (order.status === STATUS_IN_PRODUCTION) production += Number(order.quantity);
+        if (order.status === STATUS_READY_FOR_DELIVERY) ready += Number(order.quantity);
+        if (order.status !== STATUS_DELIVERED && order.dueDate < today) late += 1;
 
         const tr = document.createElement("tr");
         const customerCell = document.createElement("td");
@@ -291,7 +295,7 @@
         quantity: Number(formData.get("quantity")),
         dueDate: String(formData.get("dueDate")),
         address: String(formData.get("address")).trim(),
-        status: "Planned"
+        status: STATUS_PLANNED
       });
       saveOrders(orders);
       form.reset();
