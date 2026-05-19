@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timber Window Logistics</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #1d1d1d;
+    }
+    h1, h2 {
+      margin-top: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+    .metrics {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .metric {
+      background: #eef6eb;
+      border-radius: 6px;
+      padding: 10px;
+      min-width: 120px;
+    }
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+      gap: 4px;
+    }
+    input, select, button {
+      padding: 8px;
+      border: 1px solid #c9c9c9;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    button {
+      cursor: pointer;
+      background: #2d6a4f;
+      color: #fff;
+      border: none;
+    }
+    button.secondary {
+      background: #4f772d;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ebebeb;
+      vertical-align: top;
+    }
+    .actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      display: inline-block;
+      background: #edf2f7;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Timber Window Logistics</h1>
+  <div class="grid">
+    <section class="card">
+      <h2>New Window Frame Order</h2>
+      <form id="order-form">
+        <label>Customer
+          <input name="customer" required>
+        </label>
+        <label>Wood type
+          <select name="woodType" required>
+            <option value="Oak">Oak</option>
+            <option value="Pine">Pine</option>
+            <option value="Meranti">Meranti</option>
+            <option value="Accoya">Accoya</option>
+          </select>
+        </label>
+        <label>Width (mm)
+          <input name="width" type="number" min="300" step="1" required>
+        </label>
+        <label>Height (mm)
+          <input name="height" type="number" min="300" step="1" required>
+        </label>
+        <label>Quantity
+          <input name="quantity" type="number" min="1" step="1" required>
+        </label>
+        <label>Due date
+          <input name="dueDate" type="date" required>
+        </label>
+        <label style="grid-column: 1 / -1;">Delivery address
+          <input name="address" required>
+        </label>
+        <button type="submit" style="grid-column: 1 / -1;">Add Order</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Production & Delivery Overview</h2>
+      <div class="metrics">
+        <div class="metric"><strong id="total-frames">0</strong><div>Total frames</div></div>
+        <div class="metric"><strong id="in-production">0</strong><div>In production</div></div>
+        <div class="metric"><strong id="ready-delivery">0</strong><div>Ready for delivery</div></div>
+        <div class="metric"><strong id="late-orders">0</strong><div>Late orders</div></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Order Board</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Spec</th>
+          <th>Due</th>
+          <th>Address</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="order-rows"></tbody>
+    </table>
+  </section>
+
+  <script>
+    const STORAGE_KEY = "timber-window-orders-v1";
+    const statuses = ["Planned", "In Production", "Ready for Delivery", "Delivered"];
+
+    const form = document.getElementById("order-form");
+    const rows = document.getElementById("order-rows");
+    const totalFrames = document.getElementById("total-frames");
+    const inProduction = document.getElementById("in-production");
+    const readyDelivery = document.getElementById("ready-delivery");
+    const lateOrders = document.getElementById("late-orders");
+
+    function loadOrders() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveOrders(orders) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+    }
+
+    function formatDate(dateString) {
+      return new Date(dateString).toLocaleDateString();
+    }
+
+    function nextStatus(currentStatus) {
+      const currentIndex = statuses.indexOf(currentStatus);
+      return statuses[Math.min(currentIndex + 1, statuses.length - 1)];
+    }
+
+    function render() {
+      const orders = loadOrders().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      rows.innerHTML = "";
+      const today = new Date().toISOString().slice(0, 10);
+      let total = 0;
+      let production = 0;
+      let ready = 0;
+      let late = 0;
+
+      orders.forEach((order, index) => {
+        total += Number(order.quantity);
+        if (order.status === "In Production") production += Number(order.quantity);
+        if (order.status === "Ready for Delivery") ready += Number(order.quantity);
+        if (order.status !== "Delivered" && order.dueDate < today) late += 1;
+
+        const tr = document.createElement("tr");
+        const customerCell = document.createElement("td");
+        customerCell.textContent = order.customer;
+
+        const specCell = document.createElement("td");
+        specCell.textContent = `${order.quantity}x ${order.width}×${order.height} ${order.woodType}`;
+
+        const dueCell = document.createElement("td");
+        dueCell.textContent = formatDate(order.dueDate);
+
+        const addressCell = document.createElement("td");
+        addressCell.textContent = order.address;
+
+        const statusCell = document.createElement("td");
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = order.status;
+        statusCell.appendChild(chip);
+
+        const actionsCell = document.createElement("td");
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const advanceButton = document.createElement("button");
+        advanceButton.className = "secondary";
+        advanceButton.dataset.action = "advance";
+        advanceButton.dataset.index = String(index);
+        advanceButton.textContent = "Advance";
+
+        const removeButton = document.createElement("button");
+        removeButton.dataset.action = "remove";
+        removeButton.dataset.index = String(index);
+        removeButton.textContent = "Remove";
+
+        actions.append(advanceButton, removeButton);
+        actionsCell.appendChild(actions);
+        tr.append(customerCell, specCell, dueCell, addressCell, statusCell, actionsCell);
+        rows.appendChild(tr);
+      });
+
+      totalFrames.textContent = String(total);
+      inProduction.textContent = String(production);
+      readyDelivery.textContent = String(ready);
+      lateOrders.textContent = String(late);
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const orders = loadOrders();
+      orders.push({
+        customer: String(formData.get("customer")).trim(),
+        woodType: String(formData.get("woodType")),
+        width: Number(formData.get("width")),
+        height: Number(formData.get("height")),
+        quantity: Number(formData.get("quantity")),
+        dueDate: String(formData.get("dueDate")),
+        address: String(formData.get("address")).trim(),
+        status: "Planned"
+      });
+      saveOrders(orders);
+      form.reset();
+      render();
+    });
+
+    rows.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      const orders = loadOrders().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      const index = Number(button.dataset.index);
+      if (button.dataset.action === "advance") {
+        orders[index].status = nextStatus(orders[index].status);
+      }
+      if (button.dataset.action === "remove") {
+        orders.splice(index, 1);
+      }
+      saveOrders(orders);
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
