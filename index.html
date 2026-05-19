@@ -166,9 +166,22 @@
     const inProduction = document.getElementById("in-production");
     const readyDelivery = document.getElementById("ready-delivery");
     const lateOrders = document.getElementById("late-orders");
+    let orderCounter = 0;
 
     function createOrderId() {
-      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      orderCounter += 1;
+      return `${Date.now()}-${orderCounter}`;
+    }
+
+    function getTodayLocalDateString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
     }
 
     function loadOrders() {
@@ -205,7 +218,7 @@
     function render() {
       const orders = loadOrders().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       rows.innerHTML = "";
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayLocalDateString();
       let total = 0;
       let production = 0;
       let ready = 0;
