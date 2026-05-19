@@ -167,9 +167,23 @@
     const readyDelivery = document.getElementById("ready-delivery");
     const lateOrders = document.getElementById("late-orders");
 
+    function createOrderId() {
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
     function loadOrders() {
       try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let changed = false;
+        const normalized = parsed.map((order) => {
+          if (order.id) return order;
+          changed = true;
+          return { ...order, id: createOrderId() };
+        });
+        if (changed) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        }
+        return normalized;
       } catch {
         return [];
       }
@@ -197,7 +211,7 @@
       let ready = 0;
       let late = 0;
 
-      orders.forEach((order, index) => {
+      orders.forEach((order) => {
         total += Number(order.quantity);
         if (order.status === "In Production") production += Number(order.quantity);
         if (order.status === "Ready for Delivery") ready += Number(order.quantity);
@@ -229,12 +243,12 @@
         const advanceButton = document.createElement("button");
         advanceButton.className = "secondary";
         advanceButton.dataset.action = "advance";
-        advanceButton.dataset.index = String(index);
+        advanceButton.dataset.orderId = order.id;
         advanceButton.textContent = "Advance";
 
         const removeButton = document.createElement("button");
         removeButton.dataset.action = "remove";
-        removeButton.dataset.index = String(index);
+        removeButton.dataset.orderId = order.id;
         removeButton.textContent = "Remove";
 
         actions.append(advanceButton, removeButton);
@@ -254,6 +268,7 @@
       const formData = new FormData(form);
       const orders = loadOrders();
       orders.push({
+        id: createOrderId(),
         customer: String(formData.get("customer")).trim(),
         woodType: String(formData.get("woodType")),
         width: Number(formData.get("width")),
@@ -272,8 +287,10 @@
       const button = event.target.closest("button");
       if (!button) return;
 
-      const orders = loadOrders().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-      const index = Number(button.dataset.index);
+      const orders = loadOrders();
+      const orderId = button.dataset.orderId;
+      const index = orders.findIndex((order) => order.id === orderId);
+      if (index < 0) return;
       if (button.dataset.action === "advance") {
         orders[index].status = nextStatus(orders[index].status);
       }

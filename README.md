@@ -4,7 +4,7 @@ Simple app for planning **production** and **delivery** of wooden window frames.
 
 ## Run
 
-Open `/home/runner/work/TimberWindowLogistics/TimberWindowLogistics/index.html` in your browser.
+Open `index.html` in your browser.
 
 ## Features
 
