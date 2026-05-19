@@ -96,8 +96,9 @@
   <h1>Timber Window Logistics</h1>
   <div class="grid">
     <section class="card">
-      <h2>New Window Frame Order</h2>
+      <h2 id="form-title">New Window Frame Order</h2>
       <form id="order-form">
+        <input type="hidden" name="editingId" value="">
         <label>Customer
           <input name="customer" required>
         </label>
@@ -121,10 +122,20 @@
         <label>Due date
           <input name="dueDate" type="date" required>
         </label>
-        <label style="grid-column: 1 / -1;">Delivery address
-          <input name="address" required>
+        <label>Street
+          <input name="street" required>
         </label>
-        <button type="submit" style="grid-column: 1 / -1;">Add Order</button>
+        <label>House number
+          <input name="houseNumber" required>
+        </label>
+        <label>City
+          <input name="city" required>
+        </label>
+        <label>Country
+          <input name="country" required>
+        </label>
+        <button type="submit" id="submit-btn" style="grid-column: 1 / -1;">Add Order</button>
+        <button type="button" id="cancel-btn" style="grid-column: 1 / -1; display: none;">Cancel</button>
       </form>
     </section>
 
@@ -165,6 +176,9 @@
     const statuses = [STATUS_PLANNED, STATUS_IN_PRODUCTION, STATUS_READY_FOR_DELIVERY, STATUS_DELIVERED];
 
     const form = document.getElementById("order-form");
+    const formTitle = document.getElementById("form-title");
+    const submitBtn = document.getElementById("submit-btn");
+    const cancelBtn = document.getElementById("cancel-btn");
     const rows = document.getElementById("order-rows");
     const totalFrames = document.getElementById("total-frames");
     const inProduction = document.getElementById("in-production");
@@ -221,6 +235,34 @@
       return statuses[Math.min(currentIndex + 1, statuses.length - 1)];
     }
 
+    function setEditMode(order) {
+      formTitle.textContent = "Edit Order";
+      submitBtn.textContent = "Update Order";
+      cancelBtn.style.display = "";
+      form.elements["editingId"].value = order.id;
+      form.elements["customer"].value = order.customer;
+      form.elements["woodType"].value = order.woodType;
+      form.elements["width"].value = order.width;
+      form.elements["height"].value = order.height;
+      form.elements["quantity"].value = order.quantity;
+      form.elements["dueDate"].value = order.dueDate;
+      form.elements["street"].value = order.street || "";
+      form.elements["houseNumber"].value = order.houseNumber || "";
+      form.elements["city"].value = order.city || "";
+      form.elements["country"].value = order.country || "";
+      form.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function clearEditMode() {
+      formTitle.textContent = "New Window Frame Order";
+      submitBtn.textContent = "Add Order";
+      cancelBtn.style.display = "none";
+      form.elements["editingId"].value = "";
+      form.reset();
+    }
+
+    cancelBtn.addEventListener("click", clearEditMode);
+
     function render() {
       const orders = loadOrders().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       rows.innerHTML = "";
@@ -247,7 +289,10 @@
         dueCell.textContent = formatDate(order.dueDate);
 
         const addressCell = document.createElement("td");
-        addressCell.textContent = order.address;
+        const addr = order.address
+          ? order.address
+          : `${order.street} ${order.houseNumber}, ${order.city}, ${order.country}`;
+        addressCell.textContent = addr;
 
         const statusCell = document.createElement("td");
         const chip = document.createElement("span");
@@ -258,6 +303,12 @@
         const actionsCell = document.createElement("td");
         const actions = document.createElement("div");
         actions.className = "actions";
+
+        const editButton = document.createElement("button");
+        editButton.className = "secondary";
+        editButton.dataset.action = "edit";
+        editButton.dataset.orderId = order.id;
+        editButton.textContent = "Edit";
 
         const advanceButton = document.createElement("button");
         advanceButton.className = "secondary";
@@ -270,7 +321,7 @@
         removeButton.dataset.orderId = order.id;
         removeButton.textContent = "Remove";
 
-        actions.append(advanceButton, removeButton);
+        actions.append(editButton, advanceButton, removeButton);
         actionsCell.appendChild(actions);
         tr.append(customerCell, specCell, dueCell, addressCell, statusCell, actionsCell);
         rows.appendChild(tr);
@@ -286,19 +337,31 @@
       event.preventDefault();
       const formData = new FormData(form);
       const orders = loadOrders();
-      orders.push({
-        id: createOrderId(),
+      const editingId = String(formData.get("editingId") || "").trim();
+      const fields = {
         customer: String(formData.get("customer")).trim(),
         woodType: String(formData.get("woodType")),
         width: Number(formData.get("width")),
         height: Number(formData.get("height")),
         quantity: Number(formData.get("quantity")),
         dueDate: String(formData.get("dueDate")),
-        address: String(formData.get("address")).trim(),
-        status: STATUS_PLANNED
-      });
+        street: String(formData.get("street")).trim(),
+        houseNumber: String(formData.get("houseNumber")).trim(),
+        city: String(formData.get("city")).trim(),
+        country: String(formData.get("country")).trim(),
+      };
+
+      if (editingId) {
+        const index = orders.findIndex((o) => o.id === editingId);
+        if (index >= 0) {
+          orders[index] = { ...orders[index], ...fields, address: undefined };
+        }
+      } else {
+        orders.push({ id: createOrderId(), ...fields, status: STATUS_PLANNED });
+      }
+
       saveOrders(orders);
-      form.reset();
+      clearEditMode();
       render();
     });
 
@@ -310,6 +373,10 @@
       const orderId = button.dataset.orderId;
       const index = orders.findIndex((order) => order.id === orderId);
       if (index < 0) return;
+      if (button.dataset.action === "edit") {
+        setEditMode(orders[index]);
+        return;
+      }
       if (button.dataset.action === "advance") {
         orders[index].status = nextStatus(orders[index].status);
       }
