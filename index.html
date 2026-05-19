@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timber Window Logistics</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #1d1d1d;
+    }
+    h1, h2 {
+      margin-top: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+    .metrics {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .metric {
+      background: #eef6eb;
+      border-radius: 6px;
+      padding: 10px;
+      min-width: 120px;
+    }
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+      gap: 4px;
+    }
+    input, select, button {
+      padding: 8px;
+      border: 1px solid #c9c9c9;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    button {
+      cursor: pointer;
+      background: #2d6a4f;
+      color: #fff;
+      border: none;
+    }
+    button.secondary {
+      background: #4f772d;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ebebeb;
+      vertical-align: top;
+    }
+    .actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      display: inline-block;
+      background: #edf2f7;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.8rem;
+    }
+    #pane-divider {
+      width: 14px;
+      flex-shrink: 0;
+      cursor: col-resize;
+      border-radius: 4px;
+      background: #c8d8c8;
+      position: relative;
+      transition: background 0.15s;
+      margin: 0 4px;
+    }
+    #pane-divider:hover, #pane-divider.dragging {
+      background: #2d6a4f;
+    }
+    #pane-divider::before {
+      content: "⋮";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.4rem;
+      color: #6a6a6a;
+      line-height: 1;
+      pointer-events: none;
+    }
+    #pane-divider:hover::before, #pane-divider.dragging::before {
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Timber Window Logistics</h1>
+  <div class="grid">
+    <section class="card">
+      <h2 id="form-title">New Window Frame Order</h2>
+      <form id="order-form">
+        <input type="hidden" name="editingId" value="">
+        <label>Customer
+          <input name="customer" required>
+        </label>
+        <label>Wood type
+          <select name="woodType" required>
+            <option value="Oak">Oak</option>
+            <option value="Pine">Pine</option>
+            <option value="Meranti">Meranti</option>
+            <option value="Accoya">Accoya</option>
+          </select>
+        </label>
+        <label>Width (mm)
+          <input name="width" type="number" min="300" step="1" required>
+        </label>
+        <label>Height (mm)
+          <input name="height" type="number" min="300" step="1" required>
+        </label>
+        <label>Quantity
+          <input name="quantity" type="number" min="1" step="1" required>
+        </label>
+        <label>Due date
+          <input name="dueDate" type="date" required>
+        </label>
+        <label>Street
+          <input name="street" required>
+        </label>
+        <label>House number
+          <input name="houseNumber" required>
+        </label>
+        <label>City
+          <input name="city" required>
+        </label>
+        <label>Country
+          <select name="country" required>
+            <option value="">Select country</option>
+            <option value="The Netherlands">The Netherlands</option>
+            <option value="Belgium">Belgium</option>
+            <option value="Germany">Germany</option>
+            <option value="France">France</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Denmark">Denmark</option>
+            <option value="Norway">Norway</option>
+            <option value="Sweden">Sweden</option>
+            <option value="Luxembourg">Luxembourg</option>
+            <option value="Austria">Austria</option>
+            <option value="Switzerland">Switzerland</option>
+          </select>
+        </label>
+        <button type="submit" id="submit-btn" style="grid-column: 1 / -1;">Add Order</button>
+        <button type="button" id="cancel-btn" style="grid-column: 1 / -1; display: none;">Cancel</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Production & Delivery Overview</h2>
+      <div class="metrics">
+        <div class="metric"><strong id="total-frames">0</strong><div>Total frames</div></div>
+        <div class="metric"><strong id="in-production">0</strong><div>In production</div></div>
+        <div class="metric"><strong id="ready-delivery">0</strong><div>Ready for delivery</div></div>
+        <div class="metric"><strong id="late-orders">0</strong><div>Late orders</div></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; gap: 0; align-items: stretch; margin-top: 16px;">
+    <section id="left-pane" class="card" style="flex: 0 0 50%; min-width: 200px; overflow: auto;">
+      <h2>Order Board</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Spec</th>
+            <th>Due</th>
+            <th>Address</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="order-rows"></tbody>
+      </table>
+    </section>
+
+    <div id="pane-divider"></div>
+
+    <section id="right-pane" class="card" style="flex: 1; min-width: 200px;">
+      <h2>Delivery Map</h2>
+      <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 12px;">
+        <label style="flex: 1; min-width: 220px;">
+          Google Maps API Key
+          <input id="maps-api-key" type="password" placeholder="Paste your API key" autocomplete="off">
+        </label>
+        <button id="load-map-btn" type="button">Load Map</button>
+      </div>
+      <div id="map-legend" style="display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;"></div>
+      <div id="map" style="height: 440px; border-radius: 6px; display: none;"></div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "timber-window-orders-v1";
+    const STATUS_PLANNED = "Planned";
+    const STATUS_IN_PRODUCTION = "In Production";
+    const STATUS_READY_FOR_DELIVERY = "Ready for Delivery";
+    const STATUS_DELIVERED = "Delivered";
+    const statuses = [STATUS_PLANNED, STATUS_IN_PRODUCTION, STATUS_READY_FOR_DELIVERY, STATUS_DELIVERED];
+
+    const form = document.getElementById("order-form");
+    const formTitle = document.getElementById("form-title");
+    const submitBtn = document.getElementById("submit-btn");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const rows = document.getElementById("order-rows");
+    const totalFrames = document.getElementById("total-frames");
+    const inProduction = document.getElementById("in-production");
+    const readyDelivery = document.getElementById("ready-delivery");
+    const lateOrders = document.getElementById("late-orders");
+    let orderCounter = 0;
+
+    function createOrderId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      orderCounter += 1;
+      return `${Date.now()}-${Math.floor(performance.now() * 1000)}-${orderCounter}`;
+    }
+
+    function getTodayLocalDateString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function loadOrders() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let changed = false;
+        const normalized = parsed.map((order) => {
+          if (order.id) return order;
+          changed = true;
+          return { ...order, id: createOrderId() };
+        });
+        if (changed) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        }
+        return normalized;
+      } catch {
+        return [];
+      }
+    }
+
+    function saveOrders(orders) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+    }
+
+    function formatDate(dateString) {
+      const [year, month, day] = String(dateString).split("-");
+      if (!year || !month || !day) return String(dateString);
+      return `${day}/${month}/${year}`;
+    }
+
+    function nextStatus(currentStatus) {
+      const currentIndex = statuses.indexOf(currentStatus);
+      return statuses[Math.min(currentIndex + 1, statuses.length - 1)];
+    }
+
+    function setEditMode(order) {
+      formTitle.textContent = "Edit Order";
+      submitBtn.textContent = "Update Order";
+      cancelBtn.style.display = "";
+      form.elements["editingId"].value = order.id;
+      form.elements["customer"].value = order.customer;
+      form.elements["woodType"].value = order.woodType;
+      form.elements["width"].value = order.width;
+      form.elements["height"].value = order.height;
+      form.elements["quantity"].value = order.quantity;
+      form.elements["dueDate"].value = order.dueDate;
+      form.elements["street"].value = order.street || "";
+      form.elements["houseNumber"].value = order.houseNumber || "";
+      form.elements["city"].value = order.city || "";
+      form.elements["country"].value = order.country || "";
+      form.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function clearEditMode() {
+      formTitle.textContent = "New Window Frame Order";
+      submitBtn.textContent = "Add Order";
+      cancelBtn.style.display = "none";
+      form.elements["editingId"].value = "";
+      form.reset();
+    }
+
+    cancelBtn.addEventListener("click", clearEditMode);
+
+    function render() {
+      const orders = loadOrders().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      rows.innerHTML = "";
+      const today = getTodayLocalDateString();
+      let total = 0;
+      let production = 0;
+      let ready = 0;
+      let late = 0;
+
+      orders.forEach((order) => {
+        total += Number(order.quantity);
+        if (order.status === STATUS_IN_PRODUCTION) production += Number(order.quantity);
+        if (order.status === STATUS_READY_FOR_DELIVERY) ready += Number(order.quantity);
+        if (order.status !== STATUS_DELIVERED && order.dueDate < today) late += 1;
+
+        const tr = document.createElement("tr");
+        const customerCell = document.createElement("td");
+        customerCell.textContent = order.customer;
+
+        const specCell = document.createElement("td");
+        specCell.textContent = `${order.quantity}x ${order.width}×${order.height} ${order.woodType}`;
+
+        const dueCell = document.createElement("td");
+        dueCell.textContent = formatDate(order.dueDate);
+
+        const addressCell = document.createElement("td");
+        const addr = order.address
+          ? order.address
+          : `${order.street} ${order.houseNumber}, ${order.city}, ${order.country}`;
+        addressCell.textContent = addr;
+
+        const statusCell = document.createElement("td");
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = order.status;
+        statusCell.appendChild(chip);
+
+        const actionsCell = document.createElement("td");
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const editButton = document.createElement("button");
+        editButton.className = "secondary";
+        editButton.dataset.action = "edit";
+        editButton.dataset.orderId = order.id;
+        editButton.textContent = "Edit";
+
+        const advanceButton = document.createElement("button");
+        advanceButton.className = "secondary";
+        advanceButton.dataset.action = "advance";
+        advanceButton.dataset.orderId = order.id;
+        advanceButton.textContent = "Advance";
+
+        const removeButton = document.createElement("button");
+        removeButton.dataset.action = "remove";
+        removeButton.dataset.orderId = order.id;
+        removeButton.textContent = "Remove";
+
+        actions.append(editButton, advanceButton, removeButton);
+        actionsCell.appendChild(actions);
+        tr.append(customerCell, specCell, dueCell, addressCell, statusCell, actionsCell);
+        rows.appendChild(tr);
+      });
+
+      totalFrames.textContent = String(total);
+      inProduction.textContent = String(production);
+      readyDelivery.textContent = String(ready);
+      lateOrders.textContent = String(late);
+      renderMapMarkers();
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const orders = loadOrders();
+      const editingId = String(formData.get("editingId") || "").trim();
+      const fields = {
+        customer: String(formData.get("customer")).trim(),
+        woodType: String(formData.get("woodType")),
+        width: Number(formData.get("width")),
+        height: Number(formData.get("height")),
+        quantity: Number(formData.get("quantity")),
+        dueDate: String(formData.get("dueDate")),
+        street: String(formData.get("street")).trim(),
+        houseNumber: String(formData.get("houseNumber")).trim(),
+        city: String(formData.get("city")).trim(),
+        country: String(formData.get("country")).trim(),
+      };
+
+      if (editingId) {
+        const index = orders.findIndex((o) => o.id === editingId);
+        if (index >= 0) {
+          orders[index] = { ...orders[index], ...fields, address: undefined };
+        }
+      } else {
+        orders.push({ id: createOrderId(), ...fields, status: STATUS_PLANNED });
+      }
+
+      saveOrders(orders);
+      clearEditMode();
+      render();
+    });
+
+    rows.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      const orders = loadOrders();
+      const orderId = button.dataset.orderId;
+      const index = orders.findIndex((order) => order.id === orderId);
+      if (index < 0) return;
+      if (button.dataset.action === "edit") {
+        setEditMode(orders[index]);
+        return;
+      }
+      if (button.dataset.action === "advance") {
+        orders[index].status = nextStatus(orders[index].status);
+      }
+      if (button.dataset.action === "remove") {
+        orders.splice(index, 1);
+      }
+      saveOrders(orders);
+      render();
+    });
+
+    // ── Google Maps ──────────────────────────────────────────────────────────
+
+    const MAPS_KEY_STORAGE = "timber-window-maps-key";
+    const GEOCACHE_KEY = "timber-window-geocache-v1";
+    const MAP_COLORS = {
+      "Planned": "#6c757d",
+      "In Production": "#e07b00",
+      "Ready for Delivery": "#2d6a4f",
+      "Delivered": "#adb5bd",
+    };
+
+    let map = null;
+    let mapMarkers = [];
+    let geocodeGeneration = 0;
+
+    window.initMap = function () {
+      const mapEl = document.getElementById("map");
+      mapEl.style.display = "block";
+      map = new google.maps.Map(mapEl, {
+        zoom: 7,
+        center: { lat: 52.3, lng: 5.3 },
+      });
+      renderMapLegend();
+      renderMapMarkers();
+    };
+
+    function loadGeocache() {
+      try { return JSON.parse(localStorage.getItem(GEOCACHE_KEY)) || {}; } catch { return {}; }
+    }
+
+    function saveGeocache(cache) {
+      localStorage.setItem(GEOCACHE_KEY, JSON.stringify(cache));
+    }
+
+    function orderAddressString(order) {
+      return order.address || `${order.street} ${order.houseNumber}, ${order.city}, ${order.country}`;
+    }
+
+    function renderMapMarkers() {
+      if (!map) return;
+      mapMarkers.forEach((m) => m.setMap(null));
+      mapMarkers = [];
+
+      const generation = ++geocodeGeneration;
+      const orders = loadOrders();
+      const cache = loadGeocache();
+      const geocoder = new google.maps.Geocoder();
+      const uncached = [];
+
+      orders.forEach((order) => {
+        const addr = orderAddressString(order);
+        if (cache[addr]) {
+          placeMarker(order, cache[addr]);
+        } else {
+          uncached.push({ order, addr });
+        }
+      });
+
+      function geocodeNext(i) {
+        if (generation !== geocodeGeneration) return;
+        if (i >= uncached.length) return;
+        const { order, addr } = uncached[i];
+
+        const fallbacks = [
+          addr,
+          [order.city, order.country].filter(Boolean).join(", "),
+          order.country || "",
+        ].filter(Boolean);
+
+        function tryFallback(fi, retryDelay) {
+          if (generation !== geocodeGeneration) return;
+          if (fi >= fallbacks.length) {
+            setTimeout(() => geocodeNext(i + 1), 300);
+            return;
+          }
+          geocoder.geocode({ address: fallbacks[fi] }, (results, status) => {
+            if (generation !== geocodeGeneration) return;
+            if (status === "OK" && results[0]) {
+              const loc = results[0].geometry.location;
+              const latLng = { lat: loc.lat(), lng: loc.lng() };
+              if (fi === 0) {
+                const c = loadGeocache();
+                c[addr] = latLng;
+                saveGeocache(c);
+              }
+              placeMarker(order, latLng);
+              setTimeout(() => geocodeNext(i + 1), 300);
+            } else if (status === "OVER_QUERY_LIMIT") {
+              const backoff = Math.min((retryDelay || 1000) * 1.5, 10000);
+              setTimeout(() => tryFallback(fi, backoff), backoff);
+            } else {
+              setTimeout(() => tryFallback(fi + 1, 300), 300);
+            }
+          });
+        }
+        tryFallback(0, 300);
+      }
+      geocodeNext(0);
+    }
+
+    function placeMarker(order, latLng) {
+      const color = MAP_COLORS[order.status] || "#333";
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map,
+        title: order.customer,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 9,
+          fillColor: color,
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
+      });
+      const info = new google.maps.InfoWindow({
+        content: `<div style="font-family:Arial,sans-serif;font-size:0.875rem;line-height:1.6;min-width:160px;">
+          <strong>${order.customer}</strong><br>
+          ${order.quantity}× ${order.width}×${order.height} ${order.woodType}<br>
+          Due: ${formatDate(order.dueDate)}<br>
+          <span style="display:inline-block;background:${color};color:#fff;border-radius:999px;padding:1px 8px;font-size:0.75rem;margin-top:2px;">${order.status}</span>
+        </div>`,
+      });
+      marker.addListener("click", () => info.open(map, marker));
+      mapMarkers.push(marker);
+    }
+
+    function renderMapLegend() {
+      const legend = document.getElementById("map-legend");
+      legend.innerHTML = "";
+      legend.style.display = "flex";
+      statuses.forEach((s) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.style.cssText = `background:${MAP_COLORS[s]};color:#fff;`;
+        chip.textContent = s;
+        legend.appendChild(chip);
+      });
+    }
+
+    function loadMapsScript(key) {
+      if (window.google && window.google.maps) {
+        if (!map) initMap(); else renderMapMarkers();
+        return;
+      }
+      if (document.getElementById("gmaps-script")) return;
+      const script = document.createElement("script");
+      script.id = "gmaps-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        document.getElementById("gmaps-script").remove();
+        alert("Failed to load Google Maps. Please check your API key.");
+      };
+      document.head.appendChild(script);
+    }
+
+    document.getElementById("load-map-btn").addEventListener("click", () => {
+      const key = document.getElementById("maps-api-key").value.trim();
+      if (!key) return;
+      localStorage.setItem(MAPS_KEY_STORAGE, key);
+      loadMapsScript(key);
+    });
+
+    const savedMapsKey = localStorage.getItem(MAPS_KEY_STORAGE);
+    if (savedMapsKey) {
+      document.getElementById("maps-api-key").value = savedMapsKey;
+      loadMapsScript(savedMapsKey);
+    }
+
+    // ── Resizable divider ────────────────────────────────────────────────────
+
+    (function () {
+      const divider = document.getElementById("pane-divider");
+      const leftPane = document.getElementById("left-pane");
+
+      divider.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const container = divider.parentElement;
+        const startX = e.clientX;
+        const startWidth = leftPane.getBoundingClientRect().width;
+
+        divider.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+
+        function onMouseMove(e) {
+          const containerWidth = container.getBoundingClientRect().width;
+          const delta = e.clientX - startX;
+          const newWidth = Math.min(Math.max(startWidth + delta, 200), containerWidth - 216);
+          leftPane.style.flex = `0 0 ${newWidth}px`;
+        }
+
+        function onMouseUp() {
+          divider.classList.remove("dragging");
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+        }
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+    })();
+
+    render();
+  </script>
+</body>
+</html>
