@@ -173,7 +173,7 @@
         return window.crypto.randomUUID();
       }
       orderCounter += 1;
-      return `${Date.now()}-${orderCounter}`;
+      return `${Date.now()}-${orderCounter}-${Math.random().toString(16).slice(2)}`;
     }
 
     function getTodayLocalDateString() {
@@ -207,7 +207,9 @@
     }
 
     function formatDate(dateString) {
-      return new Date(dateString).toLocaleDateString();
+      const [year, month, day] = String(dateString).split("-");
+      if (!year || !month || !day) return String(dateString);
+      return `${day}/${month}/${year}`;
     }
 
     function nextStatus(currentStatus) {
